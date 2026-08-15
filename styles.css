@@ -10,3 +10,16 @@
 .previous-card{background:#0f172a}.previous-reps{font-weight:800;color:#cbd5e1;text-align:right}
 .active-actions{display:grid;grid-template-columns:.8fr 1.4fr;gap:10px}
 .active-actions .secondary,.active-actions .primary{margin-top:16px}
+
+.rest-card{background:linear-gradient(135deg,#102033,#131f32)}
+.timer-display{font-size:42px;font-weight:900;letter-spacing:.03em;margin-top:2px;font-variant-numeric:tabular-nums}
+.timer-status{padding:7px 10px;border-radius:999px;background:#1e293b;color:#cbd5e1;font-size:12px;font-weight:800}
+.timer-status.running{background:#0c4a6e;color:#bae6fd}
+.timer-status.done{background:#14532d;color:#bbf7d0}
+.timer-presets{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.timer-preset{border:1px solid #334155;background:#0f172a;color:#cbd5e1;border-radius:10px;padding:10px 4px;font-weight:800}
+.timer-preset.active{border-color:#38bdf8;background:#12324a;color:#e0f2fe}
+.timer-actions{display:grid;grid-template-columns:.8fr 1.4fr;gap:10px}
+.timer-actions .secondary,.timer-actions .primary{margin-top:12px}
+.timer-flash{animation:timerPulse .7s ease-in-out 3}
+@keyframes timerPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.025)}}

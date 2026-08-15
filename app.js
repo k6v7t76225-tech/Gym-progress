@@ -49,6 +49,14 @@ for(const ex of defaultExercises){
 }
 saveState();
 let activeWorkout = null;
+let restTimer = {
+  duration: 90,
+  remaining: 90,
+  interval: null,
+  running: false,
+  finished: false
+};
+
 
 
 function loadState(){
@@ -100,9 +108,94 @@ const activeRirInput = document.getElementById("activeRirInput");
 const activeNoteInput = document.getElementById("activeNoteInput");
 const activeResultBox = document.getElementById("activeResultBox");
 
+const restTimerDisplay = document.getElementById("restTimerDisplay");
+const restTimerStatus = document.getElementById("restTimerStatus");
+const restTimerStartBtn = document.getElementById("restTimerStartBtn");
+const restTimerResetBtn = document.getElementById("restTimerResetBtn");
+
+
 
 document.getElementById("todayDate").textContent = new Date().toLocaleDateString("nl-NL",{weekday:"long",day:"numeric",month:"long"});
 
+
+
+function formatTimerSeconds(total){
+  const s=Math.max(0,Math.floor(total));
+  const m=Math.floor(s/60);
+  const sec=s%60;
+  return `${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
+}
+
+function renderRestTimer(){
+  if(!restTimerDisplay) return;
+  restTimerDisplay.textContent=formatTimerSeconds(restTimer.remaining);
+  restTimerStartBtn.textContent=restTimer.running ? "Pauze" : (restTimer.finished ? "Opnieuw" : "Start rust");
+  restTimerStatus.className="timer-status";
+  if(restTimer.running){
+    restTimerStatus.textContent="Loopt";
+    restTimerStatus.classList.add("running");
+  }else if(restTimer.finished){
+    restTimerStatus.textContent="Klaar ✓";
+    restTimerStatus.classList.add("done");
+  }else{
+    restTimerStatus.textContent="Klaar";
+  }
+  document.querySelectorAll(".timer-preset").forEach(btn=>{
+    btn.classList.toggle("active",Number(btn.dataset.seconds)===Number(restTimer.duration));
+  });
+}
+
+function stopRestTimerInterval(){
+  if(restTimer.interval){
+    clearInterval(restTimer.interval);
+    restTimer.interval=null;
+  }
+  restTimer.running=false;
+}
+
+function setRestTimer(seconds, autoStart=false){
+  stopRestTimerInterval();
+  restTimer.duration=Number(seconds);
+  restTimer.remaining=Number(seconds);
+  restTimer.finished=false;
+  renderRestTimer();
+  if(autoStart) startRestTimer();
+}
+
+function startRestTimer(){
+  if(restTimer.running){
+    stopRestTimerInterval();
+    renderRestTimer();
+    return;
+  }
+  if(restTimer.finished || restTimer.remaining<=0){
+    restTimer.remaining=restTimer.duration;
+    restTimer.finished=false;
+  }
+  restTimer.running=true;
+  renderRestTimer();
+
+  restTimer.interval=setInterval(()=>{
+    restTimer.remaining-=1;
+    if(restTimer.remaining<=0){
+      restTimer.remaining=0;
+      stopRestTimerInterval();
+      restTimer.finished=true;
+      renderRestTimer();
+      restTimerDisplay?.classList.add("timer-flash");
+      setTimeout(()=>restTimerDisplay?.classList.remove("timer-flash"),2200);
+
+      // Small vibration on supported phones.
+      if(navigator.vibrate) navigator.vibrate([180,80,180]);
+    }else{
+      renderRestTimer();
+    }
+  },1000);
+}
+
+function resetRestTimer(){
+  setRestTimer(restTimer.duration,false);
+}
 
 function showView(name){
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
@@ -131,6 +224,15 @@ function startActiveWorkout(){
   };
   showView("active");
   renderActiveExercise();
+}
+
+
+function defaultRestForExercise(ex){
+  const heavy = ["bench","legpress","hipthrust","shoulderpress","pullup","row","pulldown"];
+  const short = ["plank","deadbug","sideraise","facepull","dbcurl","hammercurl","ezcurl","tricepspush","tricepsext","hangingknees"];
+  if(heavy.includes(ex.id)) return 120;
+  if(short.includes(ex.id)) return 60;
+  return 90;
 }
 
 function renderActiveExercise(){
@@ -178,6 +280,7 @@ function renderActiveExercise(){
   activeNoteInput.value="";
   activeResultBox.className="result hidden";
   activeResultBox.textContent="";
+  setRestTimer(defaultRestForExercise(ex), false);
   document.getElementById("saveAndNextBtn").textContent =
     activeWorkout.index===total-1 ? "Opslaan & workout afronden" : "Opslaan & volgende";
 }
@@ -223,11 +326,13 @@ function saveActiveExercise(){
 
 function skipActiveExercise(){
   if(!activeWorkout) return;
+  stopRestTimerInterval();
   activeWorkout.index++;
   renderActiveExercise();
 }
 
 function finishActiveWorkout(){
+  stopRestTimerInterval();
   const name=activeWorkout?.name || "Workout";
   activeWorkout=null;
   renderAll();
@@ -238,6 +343,7 @@ function finishActiveWorkout(){
 function cancelActiveWorkout(){
   if(!activeWorkout){ showView("workout"); return; }
   if(confirm("Workout stoppen? Opgeslagen oefeningen blijven bewaard.")){
+    stopRestTimerInterval();
     activeWorkout=null;
     showView("workout");
   }
@@ -276,6 +382,25 @@ startWorkoutBtn?.addEventListener("click", startActiveWorkout);
 document.getElementById("saveAndNextBtn")?.addEventListener("click", saveActiveExercise);
 document.getElementById("skipExerciseBtn")?.addEventListener("click", skipActiveExercise);
 document.getElementById("cancelActiveWorkoutBtn")?.addEventListener("click", cancelActiveWorkout);
+
+restTimerStartBtn?.addEventListener("click", startRestTimer);
+restTimerResetBtn?.addEventListener("click", resetRestTimer);
+
+activeSetsContainer?.addEventListener("keydown",(e)=>{
+  if(e.key!=="Enter" || !e.target.classList.contains("active-rep-input")) return;
+  e.preventDefault();
+  const inputs=[...document.querySelectorAll(".active-rep-input")];
+  const idx=inputs.indexOf(e.target);
+  if(e.target.value){
+    setRestTimer(restTimer.duration,true);
+    if(idx>=0 && idx<inputs.length-1) inputs[idx+1].focus();
+  }
+});
+
+document.querySelectorAll(".timer-preset").forEach(btn=>{
+  btn.addEventListener("click",()=>setRestTimer(Number(btn.dataset.seconds),false));
+});
+
 
 
 document.getElementById("saveWorkoutBtn").addEventListener("click", ()=>{
@@ -460,5 +585,6 @@ function renderAll(){
   renderHistory(); renderProgress(); renderExercises(); renderBody();
 }
 renderAll();
+renderRestTimer();
 
 if("serviceWorker" in navigator){ navigator.serviceWorker.register("./service-worker.js").catch(()=>{}); }

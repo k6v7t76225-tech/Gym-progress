@@ -94,6 +94,29 @@
 
         <div class="progress-line"><div id="activeProgressBar"></div></div>
 
+
+        <div class="card rest-card">
+          <div class="row">
+            <div>
+              <div class="muted">Rusttimer</div>
+              <div id="restTimerDisplay" class="timer-display">01:30</div>
+            </div>
+            <div id="restTimerStatus" class="timer-status">Klaar</div>
+          </div>
+
+          <div class="timer-presets">
+            <button type="button" class="timer-preset" data-seconds="60">60s</button>
+            <button type="button" class="timer-preset active" data-seconds="90">90s</button>
+            <button type="button" class="timer-preset" data-seconds="120">120s</button>
+            <button type="button" class="timer-preset" data-seconds="180">180s</button>
+          </div>
+
+          <div class="timer-actions">
+            <button id="restTimerResetBtn" type="button" class="secondary">Reset</button>
+            <button id="restTimerStartBtn" type="button" class="primary">Start rust</button>
+          </div>
+        </div>
+
         <div id="previousCard" class="card previous-card">
           <div class="row">
             <div>
