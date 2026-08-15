@@ -32,7 +32,7 @@ const defaultRoutines = {
     exercises:["bench","dbpress","dbfly","tricepspush","tricepsext","plank","deadbug"]
   },
   B: {
-    name:"Workout B",
+    name:"Workout B - Rug Bicep",
     exercises:["pullup","pulldown","row","facepull","dbcurl","hammercurl","ezcurl","hangingknees","plank"]
   },
   C: {
