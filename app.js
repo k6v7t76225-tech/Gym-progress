@@ -32,7 +32,7 @@ const defaultRoutines = {
     exercises:["bench","dbpress","dbfly","tricepspush","tricepsext","plank","deadbug"]
   },
   B: {
-    name:"Workout B - Rug Bicep",
+    name:"Workout B - Rug en Bicep",
     exercises:["pullup","pulldown","row","facepull","dbcurl","hammercurl","ezcurl","hangingknees","plank"]
   },
   C: {
@@ -67,6 +67,13 @@ function loadState(){
   return {exercises: defaultExercises, routines: defaultRoutines, workouts: [], body: []};
 }
 function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+function parseDecimal(v){
+  if(v===null || typeof v==="undefined" || v==="") return null;
+  const normalized=String(v).trim().replace(",",".");
+  const n=parseFloat(normalized);
+  return Number.isFinite(n) ? n : null;
+}
 
 function fmtKg(v){
   if(v===null || v==="" || typeof v==="undefined") return "—";
@@ -360,9 +367,9 @@ function saveActiveExercise(){
     alert("Vul alle sets in.");
     return;
   }
-  let weight = weightRaw==="" ? 0 : Number(weightRaw);
+  let weight = weightRaw==="" ? 0 : parseDecimal(weightRaw);
   const hitTop=reps.every(r=>r>=ex.max);
-  const nextWeight=hitTop ? weight + Number(ex.increment || 0) : weight;
+  const nextWeight=hitTop ? weight + (parseDecimal(ex.increment) ?? 0) : weight;
 
   state.workouts.push({
     id:uid(), date:nowISO(), workoutDay:activeWorkout.day,
@@ -515,14 +522,14 @@ document.querySelectorAll(".timer-preset").forEach(btn=>{
 
 document.getElementById("saveWorkoutBtn").addEventListener("click", ()=>{
   const ex = getExercise(exerciseSelect.value);
-  const weight = Number(weightInput.value);
+  const weight = parseDecimal(weightInput.value);
   const reps = [...document.querySelectorAll(".rep-input")].map(i=>Number(i.value));
-  if(!ex || !weight || reps.some(r=>!r)){
+  if(!ex || weight===null || reps.some(r=>!r)){
     alert("Vul gewicht en alle sets in.");
     return;
   }
   const hitTop = reps.every(r=>r>=ex.max);
-  const nextWeight = hitTop ? weight + Number(ex.increment) : weight;
+  const nextWeight = hitTop ? weight + (parseDecimal(ex.increment) ?? 0) : weight;
   state.workouts.push({
     id:uid(), date:nowISO(), workoutDay:workoutDaySelect?.value || "", exerciseId:ex.id, weight, reps,
     rir:rirInput.value, note:noteInput.value.trim(),
@@ -713,6 +720,17 @@ workoutExerciseChecklist?.addEventListener("change",(e)=>{
 document.getElementById("exerciseForm").addEventListener("submit",(e)=>{
   e.preventDefault();
   const id=document.getElementById("editExerciseId").value;
+  const parsedIncrement=parseDecimal(document.getElementById("editIncrement").value);
+  const parsedStart=parseDecimal(document.getElementById("editStart").value);
+  if(!document.getElementById("editName").value.trim()){
+    alert("Vul een naam voor de oefening in.");
+    return;
+  }
+  if(parsedIncrement===null || parsedIncrement<0){
+    alert("Vul een geldige verhogingsstap in, bijvoorbeeld 2,3.");
+    return;
+  }
+
   const obj={
     id:id||uid(),
     name:document.getElementById("editName").value.trim(),
@@ -720,8 +738,8 @@ document.getElementById("exerciseForm").addEventListener("submit",(e)=>{
     sets:Number(document.getElementById("editSets").value),
     min:Number(document.getElementById("editMin").value),
     max:Number(document.getElementById("editMax").value),
-    increment:Number(document.getElementById("editIncrement").value),
-    start:document.getElementById("editStart").value===""?null:Number(document.getElementById("editStart").value)
+    increment:parsedIncrement,
+    start:parsedStart
   };
   if(id){
     const idx=state.exercises.findIndex(x=>x.id===id);
