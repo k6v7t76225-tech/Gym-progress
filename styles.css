@@ -23,3 +23,16 @@
 .timer-actions .secondary,.timer-actions .primary{margin-top:12px}
 .timer-flash{animation:timerPulse .7s ease-in-out 3}
 @keyframes timerPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.025)}}
+
+.switch-card{padding:13px 14px}
+.switch-card label{margin-top:0}
+.switch-card .sub{margin-top:8px}
+
+.workout-checklist{display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow:auto;margin:14px 0}
+.workout-check-item{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:10px;padding:11px 10px;border:1px solid #2b3b55;background:#0f172a;border-radius:12px}
+.workout-check-item input[type="checkbox"]{width:20px;height:20px;margin:0}
+.order-btn{border:1px solid #334155;background:#172033;color:#dbeafe;border-radius:9px;width:34px;height:34px;font-weight:900}
+.assign-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.check-label{display:flex;gap:7px;align-items:center;margin:0;padding:10px;border:1px solid #334155;background:#0f172a;border-radius:10px;font-size:12px;color:#cbd5e1}
+.check-label input{width:auto}
+@media(max-width:430px){.assign-grid{grid-template-columns:1fr}}

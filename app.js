@@ -92,8 +92,15 @@ const rirInput = document.getElementById("rirInput");
 const noteInput = document.getElementById("noteInput");
 const resultBox = document.getElementById("resultBox");
 
+const manageWorkoutBtn = document.getElementById("manageWorkoutBtn");
+const workoutManagerDialog = document.getElementById("workoutManagerDialog");
+const workoutManagerTitle = document.getElementById("workoutManagerTitle");
+const workoutExerciseChecklist = document.getElementById("workoutExerciseChecklist");
+
+
 const startWorkoutBtn = document.getElementById("startWorkoutBtn");
 const activeWorkoutName = document.getElementById("activeWorkoutName");
+const activeExerciseSelect = document.getElementById("activeExerciseSelect");
 const activeExerciseName = document.getElementById("activeExerciseName");
 const activeCounter = document.getElementById("activeCounter");
 const activeProgressBar = document.getElementById("activeProgressBar");
@@ -220,7 +227,9 @@ function startActiveWorkout(){
     name:routine.name,
     exerciseIds:[...routine.exercises],
     index:0,
-    startedAt:nowISO()
+    startedAt:nowISO(),
+    completedIds:[],
+    drafts:{}
   };
   showView("active");
   renderActiveExercise();
@@ -233,6 +242,53 @@ function defaultRestForExercise(ex){
   if(heavy.includes(ex.id)) return 120;
   if(short.includes(ex.id)) return 60;
   return 90;
+}
+
+
+function saveActiveDraft(){
+  if(!activeWorkout) return;
+  const id=activeWorkout.exerciseIds[activeWorkout.index];
+  if(!id) return;
+  const reps=[...document.querySelectorAll(".active-rep-input")].map(i=>i.value);
+  activeWorkout.drafts[id]={
+    weight:activeWeightInput?.value ?? "",
+    reps,
+    rir:activeRirInput?.value ?? "",
+    note:activeNoteInput?.value ?? ""
+  };
+}
+
+function restoreActiveDraft(ex){
+  const draft=activeWorkout?.drafts?.[ex.id];
+  if(!draft) return false;
+  activeWeightInput.value=draft.weight ?? "";
+  const inputs=[...document.querySelectorAll(".active-rep-input")];
+  inputs.forEach((inp,i)=>inp.value=draft.reps?.[i] ?? "");
+  activeRirInput.value=draft.rir ?? "";
+  activeNoteInput.value=draft.note ?? "";
+  return true;
+}
+
+function firstUnfinishedIndex(afterIndex=-1){
+  if(!activeWorkout) return -1;
+  const total=activeWorkout.exerciseIds.length;
+  for(let step=1; step<=total; step++){
+    const idx=(afterIndex+step+total)%total;
+    const id=activeWorkout.exerciseIds[idx];
+    if(!activeWorkout.completedIds.includes(id)) return idx;
+  }
+  return -1;
+}
+
+function renderActiveExerciseSwitcher(){
+  if(!activeWorkout || !activeExerciseSelect) return;
+  activeExerciseSelect.innerHTML=activeWorkout.exerciseIds.map((id,idx)=>{
+    const ex=getExercise(id);
+    const done=activeWorkout.completedIds.includes(id);
+    const current=idx===activeWorkout.index;
+    const prefix=done ? "✓ " : "";
+    return `<option value="${idx}" ${current?"selected":""} ${done?"disabled":""}>${prefix}${ex?.name ?? id}</option>`;
+  }).join("");
 }
 
 function renderActiveExercise(){
@@ -252,8 +308,9 @@ function renderActiveExercise(){
 
   activeWorkoutName.textContent=activeWorkout.name.toUpperCase();
   activeExerciseName.textContent=ex.name;
-  activeCounter.textContent=`${activeWorkout.index+1}/${total}`;
-  activeProgressBar.style.width=`${((activeWorkout.index)/total)*100}%`;
+  activeCounter.textContent=`${activeWorkout.completedIds.length}/${total} klaar`;
+  activeProgressBar.style.width=`${(activeWorkout.completedIds.length/total)*100}%`;
+  renderActiveExerciseSwitcher();
 
   const prev=latestWorkoutForExercise(ex.id);
   if(prev){
@@ -268,7 +325,6 @@ function renderActiveExercise(){
   const sug=suggestedWeight(ex);
   activeSuggested.textContent=fmtKg(sug);
   activeIncrement.textContent=ex.increment ? `+${fmtKg(ex.increment)}` : "—";
-  activeWeightInput.value=(sug!==null && sug!==undefined) ? sug : "";
 
   activeSetsContainer.innerHTML=Array.from({length:ex.sets},(_,i)=>`
     <div class="set-box">
@@ -276,13 +332,16 @@ function renderActiveExercise(){
       <input class="active-rep-input" type="number" inputmode="numeric" min="0" max="100" placeholder="${ex.min}-${ex.max}">
     </div>`).join("");
 
+  activeWeightInput.value=(sug!==null && sug!==undefined) ? sug : "";
   activeRirInput.value="";
   activeNoteInput.value="";
+  restoreActiveDraft(ex);
   activeResultBox.className="result hidden";
   activeResultBox.textContent="";
   setRestTimer(defaultRestForExercise(ex), false);
+  const unfinishedCount=activeWorkout.exerciseIds.filter(id=>!activeWorkout.completedIds.includes(id)).length;
   document.getElementById("saveAndNextBtn").textContent =
-    activeWorkout.index===total-1 ? "Opslaan & workout afronden" : "Opslaan & volgende";
+    unfinishedCount===1 ? "Opslaan & workout afronden" : "Opslaan & volgende";
 }
 
 function saveActiveExercise(){
@@ -309,6 +368,8 @@ function saveActiveExercise(){
     status:hitTop ? "VERHOGEN" : "HOUDEN", nextWeight
   });
   saveState();
+  if(!activeWorkout.completedIds.includes(ex.id)) activeWorkout.completedIds.push(ex.id);
+  delete activeWorkout.drafts[ex.id];
 
   activeResultBox.className=`result ${hitTop?"increase":"hold"}`;
   activeResultBox.textContent=hitTop && ex.increment
@@ -318,16 +379,27 @@ function saveActiveExercise(){
       : `Volgende keer hetzelfde: ${fmtKg(nextWeight)}`;
 
   setTimeout(()=>{
-    activeWorkout.index++;
+    const nextIndex=firstUnfinishedIndex(activeWorkout.index);
     renderAll();
+    if(nextIndex===-1){
+      finishActiveWorkout();
+      return;
+    }
+    activeWorkout.index=nextIndex;
     renderActiveExercise();
   },350);
 }
 
 function skipActiveExercise(){
   if(!activeWorkout) return;
+  saveActiveDraft();
   stopRestTimerInterval();
-  activeWorkout.index++;
+  const nextIndex=firstUnfinishedIndex(activeWorkout.index);
+  if(nextIndex===-1){
+    finishActiveWorkout();
+    return;
+  }
+  activeWorkout.index=nextIndex;
   renderActiveExercise();
 }
 
@@ -346,6 +418,31 @@ function cancelActiveWorkout(){
     stopRestTimerInterval();
     activeWorkout=null;
     showView("workout");
+  }
+}
+
+
+function ensureRoutineState(){
+  if(!state.routines) state.routines=JSON.parse(JSON.stringify(defaultRoutines));
+  for(const key of ["A","B","C"]){
+    if(!state.routines[key]) state.routines[key]=JSON.parse(JSON.stringify(defaultRoutines[key]));
+    if(!Array.isArray(state.routines[key].exercises)) state.routines[key].exercises=[];
+  }
+}
+
+function assignedWorkoutDays(exerciseId){
+  ensureRoutineState();
+  return ["A","B","C"].filter(day=>state.routines[day].exercises.includes(exerciseId));
+}
+
+function setExerciseAssignments(exerciseId, days){
+  ensureRoutineState();
+  for(const day of ["A","B","C"]){
+    const list=state.routines[day].exercises;
+    const has=list.includes(exerciseId);
+    const wants=days.includes(day);
+    if(wants && !has) list.push(exerciseId);
+    if(!wants && has) state.routines[day].exercises=list.filter(id=>id!==exerciseId);
   }
 }
 
@@ -381,6 +478,15 @@ exerciseSelect.addEventListener("change", updateWorkoutForm);
 startWorkoutBtn?.addEventListener("click", startActiveWorkout);
 document.getElementById("saveAndNextBtn")?.addEventListener("click", saveActiveExercise);
 document.getElementById("skipExerciseBtn")?.addEventListener("click", skipActiveExercise);
+
+activeExerciseSelect?.addEventListener("change",()=>{
+  if(!activeWorkout) return;
+  saveActiveDraft();
+  stopRestTimerInterval();
+  activeWorkout.index=Number(activeExerciseSelect.value);
+  renderActiveExercise();
+});
+
 document.getElementById("cancelActiveWorkoutBtn")?.addEventListener("click", cancelActiveWorkout);
 
 restTimerStartBtn?.addEventListener("click", startRestTimer);
@@ -480,7 +586,7 @@ function renderExercises(){
       <div class="row">
         <div>
           <div class="exercise-title">${ex.name}</div>
-          <div class="sub">${ex.muscle || "—"} · ${ex.sets} × ${ex.min}-${ex.max} · stap ${fmtKg(ex.increment)} · start ${fmtKg(ex.start)}</div>
+          <div class="sub">${ex.muscle || "—"} · ${ex.sets} × ${ex.min}-${ex.max} · stap ${fmtKg(ex.increment)} · ${assignedWorkoutDays(ex.id).length ? "Workout "+assignedWorkoutDays(ex.id).join(", ") : "geen workout"}</div>
         </div>
         <button class="text-btn edit-ex" data-id="${ex.id}">Wijzig</button>
       </div>
@@ -489,6 +595,68 @@ function renderExercises(){
 }
 
 const dialog=document.getElementById("exerciseDialog");
+
+function openWorkoutManager(){
+  ensureRoutineState();
+  const day=workoutDaySelect.value || "A";
+  const routine=state.routines[day];
+  workoutManagerTitle.textContent=`${routine.name} beheren`;
+
+  // Selected exercises first in their current order, then unselected exercises alphabetically.
+  const selected=routine.exercises.map(id=>getExercise(id)).filter(Boolean);
+  const unselected=state.exercises
+    .filter(ex=>!routine.exercises.includes(ex.id))
+    .sort((a,b)=>a.name.localeCompare(b.name,"nl"));
+
+  const rows=[...selected,...unselected];
+  workoutExerciseChecklist.innerHTML=rows.map(ex=>{
+    const checked=routine.exercises.includes(ex.id);
+    const currentIndex=routine.exercises.indexOf(ex.id);
+    return `<div class="workout-check-item" data-id="${ex.id}">
+      <input class="routine-check" type="checkbox" value="${ex.id}" ${checked?"checked":""}>
+      <div>
+        <strong>${ex.name}</strong>
+        <div class="sub">${ex.muscle || "—"} · ${ex.sets} × ${ex.min}-${ex.max}</div>
+      </div>
+      <button type="button" class="order-btn routine-up" ${!checked || currentIndex<=0 ? "disabled":""}>↑</button>
+      <button type="button" class="order-btn routine-down" ${!checked || currentIndex<0 || currentIndex>=routine.exercises.length-1 ? "disabled":""}>↓</button>
+    </div>`;
+  }).join("");
+
+  workoutManagerDialog.showModal();
+}
+
+function saveWorkoutManager(){
+  ensureRoutineState();
+  const day=workoutDaySelect.value || "A";
+  const checked=[...workoutExerciseChecklist.querySelectorAll(".routine-check:checked")].map(x=>x.value);
+
+  // Preserve current routine order, then append newly checked items in visible order.
+  const old=state.routines[day].exercises;
+  const visible=[...workoutExerciseChecklist.querySelectorAll(".workout-check-item")].map(row=>row.dataset.id);
+  const ordered=[
+    ...old.filter(id=>checked.includes(id)),
+    ...visible.filter(id=>checked.includes(id) && !old.includes(id))
+  ];
+  state.routines[day].exercises=[...new Set(ordered)];
+  saveState();
+  workoutManagerDialog.close();
+  renderAll();
+}
+
+function moveRoutineExercise(exerciseId, direction){
+  ensureRoutineState();
+  const day=workoutDaySelect.value || "A";
+  const list=state.routines[day].exercises;
+  const idx=list.indexOf(exerciseId);
+  if(idx<0) return;
+  const target=idx+direction;
+  if(target<0 || target>=list.length) return;
+  [list[idx],list[target]]=[list[target],list[idx]];
+  saveState();
+  openWorkoutManager();
+}
+
 function openExerciseDialog(id=null){
   const ex=id?getExercise(id):{id:"",name:"",muscle:"",sets:3,min:8,max:12,increment:2.5,start:""};
   document.getElementById("exerciseDialogTitle").textContent=id?"Oefening wijzigen":"Oefening toevoegen";
@@ -500,9 +668,43 @@ function openExerciseDialog(id=null){
   document.getElementById("editMax").value=ex.max;
   document.getElementById("editIncrement").value=ex.increment;
   document.getElementById("editStart").value=ex.start ?? "";
+  const assigned=id ? assignedWorkoutDays(id) : [];
+  document.querySelectorAll('input[name="workoutAssign"]').forEach(cb=>{
+    cb.checked=assigned.includes(cb.value);
+  });
   dialog.showModal();
 }
 document.getElementById("addExerciseBtn").addEventListener("click",()=>openExerciseDialog());
+
+manageWorkoutBtn?.addEventListener("click", openWorkoutManager);
+document.getElementById("workoutManagerForm")?.addEventListener("submit",(e)=>{
+  e.preventDefault();
+  saveWorkoutManager();
+});
+workoutExerciseChecklist?.addEventListener("click",(e)=>{
+  const row=e.target.closest(".workout-check-item");
+  if(!row) return;
+  if(e.target.classList.contains("routine-up")){
+    moveRoutineExercise(row.dataset.id,-1);
+  }else if(e.target.classList.contains("routine-down")){
+    moveRoutineExercise(row.dataset.id,1);
+  }
+});
+workoutExerciseChecklist?.addEventListener("change",(e)=>{
+  if(!e.target.classList.contains("routine-check")) return;
+  // Re-render controls immediately by temporarily updating current routine.
+  ensureRoutineState();
+  const day=workoutDaySelect.value || "A";
+  const id=e.target.value;
+  if(e.target.checked && !state.routines[day].exercises.includes(id)){
+    state.routines[day].exercises.push(id);
+  }else if(!e.target.checked){
+    state.routines[day].exercises=state.routines[day].exercises.filter(x=>x!==id);
+  }
+  saveState();
+  openWorkoutManager();
+});
+
 
 document.getElementById("exerciseForm").addEventListener("submit",(e)=>{
   e.preventDefault();
@@ -521,6 +723,8 @@ document.getElementById("exerciseForm").addEventListener("submit",(e)=>{
     const idx=state.exercises.findIndex(x=>x.id===id);
     state.exercises[idx]=obj;
   }else state.exercises.push(obj);
+  const assignedDays=[...document.querySelectorAll('input[name="workoutAssign"]:checked')].map(cb=>cb.value);
+  setExerciseAssignments(obj.id, assignedDays);
   saveState();
   dialog.close();
   renderAll();
