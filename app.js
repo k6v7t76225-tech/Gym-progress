@@ -68,7 +68,11 @@ function loadState(){
 }
 function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
-function fmtKg(v){ return (v===null || v==="" || typeof v==="undefined") ? "—" : `${Number(v).toFixed(Number(v)%1?1:0)} kg`; }
+function fmtKg(v){
+  if(v===null || v==="" || typeof v==="undefined") return "—";
+  const n=Number(v);
+  return `${Number(n.toFixed(2)).toLocaleString("nl-NL",{maximumFractionDigits:2})} kg`;
+}
 function localDate(iso){ return new Date(iso).toLocaleDateString("nl-NL",{day:"2-digit",month:"2-digit",year:"numeric"}); }
 function nowISO(){ return new Date().toISOString(); }
 function uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); }

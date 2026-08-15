@@ -60,7 +60,7 @@
           </div>
 
           <label>Gebruikt gewicht (kg)</label>
-          <input id="weightInput" type="number" inputmode="decimal" step="0.5" placeholder="Bijv. 30" />
+          <input id="weightInput" type="number" inputmode="decimal" step="0.01" placeholder="Bijv. 30" />
 
           <div id="setsContainer" class="sets"></div>
 
@@ -151,7 +151,7 @@
           </div>
 
           <label>Gewicht vandaag (kg)</label>
-          <input id="activeWeightInput" type="number" inputmode="decimal" step="0.5" />
+          <input id="activeWeightInput" type="number" inputmode="decimal" step="0.01" />
 
           <div id="activeSetsContainer" class="sets"></div>
 
@@ -261,14 +261,14 @@
       <input id="editMuscle" />
       <div class="two-col">
         <div><label>Sets</label><input id="editSets" type="number" min="1" max="5" required /></div>
-        <div><label>Startgewicht</label><input id="editStart" type="number" step="0.5" /></div>
+        <div><label>Startgewicht</label><input id="editStart" type="number" step="0.01" /></div>
       </div>
       <div class="two-col">
         <div><label>Min reps</label><input id="editMin" type="number" min="1" required /></div>
         <div><label>Max reps</label><input id="editMax" type="number" min="1" required /></div>
       </div>
       <label>Verhoging (kg)</label>
-      <input id="editIncrement" type="number" step="0.5" required />
+      <input id="editIncrement" type="number" step="0.01" required />
       <label>Toevoegen aan workoutdag(en)</label>
       <div class="assign-grid">
         <label class="check-label"><input type="checkbox" name="workoutAssign" value="A"> Workout A</label>
