@@ -60,7 +60,7 @@
           </div>
 
           <label>Gebruikt gewicht (kg)</label>
-          <input id="weightInput" type="text" inputmode="decimal" step="any" placeholder="Bijv. 30" />
+          <input id="weightInput" type="text" inputmode="decimal" placeholder="Bijv. 30" />
 
           <div id="setsContainer" class="sets"></div>
 
@@ -151,7 +151,7 @@
           </div>
 
           <label>Gewicht vandaag (kg)</label>
-          <input id="activeWeightInput" type="text" inputmode="decimal" step="any" />
+          <input id="activeWeightInput" type="text" inputmode="decimal" />
 
           <div id="activeSetsContainer" class="sets"></div>
 
@@ -261,14 +261,14 @@
       <input id="editMuscle" />
       <div class="two-col">
         <div><label>Sets</label><input id="editSets" type="number" min="1" max="5" required /></div>
-        <div><label>Startgewicht</label><input id="editStart" type="text" inputmode="decimal" step="any" /></div>
+        <div><label>Startgewicht</label><input id="editStart" type="text" inputmode="decimal" /></div>
       </div>
       <div class="two-col">
         <div><label>Min reps</label><input id="editMin" type="number" min="1" required /></div>
         <div><label>Max reps</label><input id="editMax" type="number" min="1" required /></div>
       </div>
       <label>Verhoging (kg)</label>
-      <input id="editIncrement" type="text" inputmode="decimal" step="any" required />
+      <input id="editIncrement" type="text" inputmode="decimal" required />
       <label>Toevoegen aan workoutdag(en)</label>
       <div class="assign-grid">
         <label class="check-label"><input type="checkbox" name="workoutAssign" value="A"> Workout A</label>
@@ -277,7 +277,7 @@
       </div>
       <div class="dialog-actions">
         <button value="cancel" class="secondary">Annuleren</button>
-        <button id="saveExerciseBtn" value="default" class="primary">Opslaan</button>
+        <button id="saveExerciseBtn" type="button" class="primary">Opslaan</button>
       </div>
     </form>
   </dialog>

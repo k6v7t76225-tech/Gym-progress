@@ -43,6 +43,7 @@ const defaultRoutines = {
 
 let state = loadState();
 if(!state.routines) state.routines = defaultRoutines;
+if(state.routines?.B) state.routines.B.name="Workout B - Rug en Bicep";
 // Voeg nieuwere standaard-oefeningen toe zonder bestaande voortgang te wissen.
 for(const ex of defaultExercises){
   if(!state.exercises.some(x=>x.id===ex.id)) state.exercises.push(ex);
@@ -67,6 +68,22 @@ function loadState(){
   return {exercises: defaultExercises, routines: defaultRoutines, workouts: [], body: []};
 }
 function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+
+function forceDecimalTextInputs(){
+  ["editIncrement","editStart","weightInput","activeWeightInput"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.type="text";
+    el.inputMode="decimal";
+    el.removeAttribute("step");
+    el.removeAttribute("min");
+    el.removeAttribute("max");
+    el.removeAttribute("pattern");
+  });
+  const form=document.getElementById("exerciseForm");
+  if(form) form.noValidate=true;
+}
 
 function parseDecimal(v){
   if(v===null || typeof v==="undefined" || v==="") return null;
@@ -669,6 +686,7 @@ function moveRoutineExercise(exerciseId, direction){
 }
 
 function openExerciseDialog(id=null){
+  forceDecimalTextInputs();
   const ex=id?getExercise(id):{id:"",name:"",muscle:"",sets:3,min:8,max:12,increment:2.5,start:""};
   document.getElementById("exerciseDialogTitle").textContent=id?"Oefening wijzigen":"Oefening toevoegen";
   document.getElementById("editExerciseId").value=ex.id||"";
@@ -717,8 +735,8 @@ workoutExerciseChecklist?.addEventListener("change",(e)=>{
 });
 
 
-document.getElementById("exerciseForm").addEventListener("submit",(e)=>{
-  e.preventDefault();
+function saveExerciseFromDialog(){
+
   const id=document.getElementById("editExerciseId").value;
   const parsedIncrement=parseDecimal(document.getElementById("editIncrement").value);
   const parsedStart=parseDecimal(document.getElementById("editStart").value);
@@ -750,6 +768,12 @@ document.getElementById("exerciseForm").addEventListener("submit",(e)=>{
   saveState();
   dialog.close();
   renderAll();
+
+}
+document.getElementById("saveExerciseBtn")?.addEventListener("click", saveExerciseFromDialog);
+document.getElementById("exerciseForm")?.addEventListener("submit",(e)=>{
+  e.preventDefault();
+  saveExerciseFromDialog();
 });
 
 document.getElementById("saveBodyBtn").addEventListener("click",()=>{
@@ -810,7 +834,12 @@ function renderAll(){
   if(current && state.exercises.some(e=>e.id===current)){ exerciseSelect.value=current; updateWorkoutForm(); }
   renderHistory(); renderProgress(); renderExercises(); renderBody();
 }
+forceDecimalTextInputs();
 renderAll();
 renderRestTimer();
 
-if("serviceWorker" in navigator){ navigator.serviceWorker.register("./service-worker.js").catch(()=>{}); }
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("./service-worker.js").then(reg=>{
+    reg.update().catch(()=>{});
+  }).catch(()=>{});
+}
