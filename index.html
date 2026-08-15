@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <title>Gym Progress</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">GYM TRACKER</div>
+        <h1>Progress</h1>
+      </div>
+      <button id="exportBtn" class="icon-btn" title="Exporteer data">⇩</button>
+    </header>
+
+    <main>
+      <section id="view-workout" class="view active">
+        <div class="card hero">
+          <div>
+            <div class="muted">Vandaag</div>
+            <div id="todayDate" class="big-date"></div>
+          </div>
+          <div class="badge">Double progression</div>
+        </div>
+
+        <div class="card">
+          <label>Trainingsdag</label>
+          <select id="workoutDaySelect">
+            <option value="A">Workout A - Borst Tricep</option>
+            <option value="B">Workout B</option>
+            <option value="C">Workout C - Benen Schouders</option>
+          </select>
+
+          <button id="startWorkoutBtn" class="primary start-workout-btn">Start workout</button>
+
+          <div class="divider"><span>of los loggen</span></div>
+
+          <label>Oefening</label>
+          <select id="exerciseSelect"></select>
+
+          <div class="stats-grid">
+            <div class="stat">
+              <span>Doel</span>
+              <strong id="targetLabel">3 × 8–10</strong>
+            </div>
+            <div class="stat">
+              <span>Advies</span>
+              <strong id="suggestedWeight">—</strong>
+            </div>
+            <div class="stat">
+              <span>Stap</span>
+              <strong id="incrementLabel">—</strong>
+            </div>
+          </div>
+
+          <label>Gebruikt gewicht (kg)</label>
+          <input id="weightInput" type="number" inputmode="decimal" step="0.5" placeholder="Bijv. 30" />
+
+          <div id="setsContainer" class="sets"></div>
+
+          <label>RIR laatste set</label>
+          <select id="rirInput">
+            <option value="">Niet ingevuld</option>
+            <option>0</option>
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4+</option>
+          </select>
+
+          <label>Notitie</label>
+          <textarea id="noteInput" rows="3" placeholder="Techniek, pijn, gevoel, etc."></textarea>
+
+          <div id="resultBox" class="result hidden"></div>
+          <button id="saveWorkoutBtn" class="primary">Training opslaan</button>
+        </div>
+      </section>
+
+
+      <section id="view-active" class="view">
+        <div class="active-header">
+          <button id="cancelActiveWorkoutBtn" class="text-btn">← Stop</button>
+          <div class="active-title-wrap">
+            <div class="eyebrow" id="activeWorkoutName">WORKOUT</div>
+            <h2 id="activeExerciseName">Oefening</h2>
+          </div>
+          <div class="counter" id="activeCounter">1/7</div>
+        </div>
+
+        <div class="progress-line"><div id="activeProgressBar"></div></div>
+
+        <div id="previousCard" class="card previous-card">
+          <div class="row">
+            <div>
+              <div class="muted">Vorige keer</div>
+              <strong id="previousWeight">Nog geen historie</strong>
+            </div>
+            <div class="previous-reps" id="previousReps"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="stats-grid">
+            <div class="stat">
+              <span>Doel</span>
+              <strong id="activeTarget">—</strong>
+            </div>
+            <div class="stat">
+              <span>Advies</span>
+              <strong id="activeSuggested">—</strong>
+            </div>
+            <div class="stat">
+              <span>Stap</span>
+              <strong id="activeIncrement">—</strong>
+            </div>
+          </div>
+
+          <label>Gewicht vandaag (kg)</label>
+          <input id="activeWeightInput" type="number" inputmode="decimal" step="0.5" />
+
+          <div id="activeSetsContainer" class="sets"></div>
+
+          <label>RIR laatste set</label>
+          <select id="activeRirInput">
+            <option value="">Niet ingevuld</option>
+            <option>0</option><option>1</option><option>2</option>
+            <option>3</option><option>4+</option>
+          </select>
+
+          <label>Notitie</label>
+          <textarea id="activeNoteInput" rows="3" placeholder="Techniek, pijn, gevoel..."></textarea>
+
+          <div id="activeResultBox" class="result hidden"></div>
+
+          <div class="active-actions">
+            <button id="skipExerciseBtn" class="secondary">Overslaan</button>
+            <button id="saveAndNextBtn" class="primary">Opslaan & volgende</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-history" class="view">
+        <div class="section-title-row">
+          <h2>Historie</h2>
+          <button id="clearHistoryBtn" class="text-btn danger">Wis alles</button>
+        </div>
+        <div id="historyList" class="stack"></div>
+      </section>
+
+      <section id="view-progress" class="view">
+        <h2>Voortgang</h2>
+        <div class="card">
+          <div class="stats-grid">
+            <div class="stat"><span>Trainingen</span><strong id="totalSessions">0</strong></div>
+            <div class="stat"><span>Verhogingen</span><strong id="totalIncreases">0</strong></div>
+            <div class="stat"><span>Oefeningen</span><strong id="totalExercises">0</strong></div>
+          </div>
+        </div>
+        <div id="progressList" class="stack"></div>
+      </section>
+
+      <section id="view-exercises" class="view">
+        <div class="section-title-row">
+          <h2>Oefeningen</h2>
+          <button id="addExerciseBtn" class="text-btn">+ toevoegen</button>
+        </div>
+        <div id="exerciseList" class="stack"></div>
+      </section>
+
+      <section id="view-body" class="view">
+        <h2>Lichaamsgewicht</h2>
+        <div class="card">
+          <label>Gewicht (kg)</label>
+          <input id="bodyWeightInput" type="number" inputmode="decimal" step="0.1" placeholder="Bijv. 107.5" />
+          <label>Middel (cm)</label>
+          <input id="waistInput" type="number" inputmode="decimal" step="0.1" placeholder="Optioneel" />
+          <button id="saveBodyBtn" class="primary">Metingen opslaan</button>
+        </div>
+        <div id="bodyList" class="stack"></div>
+      </section>
+
+      <section id="view-settings" class="view">
+        <h2>Data</h2>
+        <div class="card">
+          <p class="muted">Je gegevens staan lokaal in deze browser.</p>
+          <button id="importBtn" class="secondary">Importeer backup</button>
+          <input id="importFile" type="file" accept="application/json" hidden />
+          <button id="resetBtn" class="secondary danger-outline">Reset app</button>
+        </div>
+        <div class="card">
+          <h3>Als app op iPhone</h3>
+          <p class="muted">Na publiceren op een webadres kun je hem in Safari openen en via ‘Zet op beginscherm’ als app installeren.</p>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button data-view="workout" class="nav-item active"><span>🏋️</span><small>Training</small></button>
+      <button data-view="history" class="nav-item"><span>🕘</span><small>Historie</small></button>
+      <button data-view="progress" class="nav-item"><span>📈</span><small>Progressie</small></button>
+      <button data-view="exercises" class="nav-item"><span>⚙️</span><small>Oefeningen</small></button>
+      <button data-view="body" class="nav-item"><span>⚖️</span><small>Gewicht</small></button>
+    </nav>
+  </div>
+
+  <dialog id="exerciseDialog">
+    <form method="dialog" id="exerciseForm">
+      <h3 id="exerciseDialogTitle">Oefening</h3>
+      <input id="editExerciseId" type="hidden" />
+      <label>Naam</label>
+      <input id="editName" required />
+      <label>Spiergroep</label>
+      <input id="editMuscle" />
+      <div class="two-col">
+        <div><label>Sets</label><input id="editSets" type="number" min="1" max="5" required /></div>
+        <div><label>Startgewicht</label><input id="editStart" type="number" step="0.5" /></div>
+      </div>
+      <div class="two-col">
+        <div><label>Min reps</label><input id="editMin" type="number" min="1" required /></div>
+        <div><label>Max reps</label><input id="editMax" type="number" min="1" required /></div>
+      </div>
+      <label>Verhoging (kg)</label>
+      <input id="editIncrement" type="number" step="0.5" required />
+      <div class="dialog-actions">
+        <button value="cancel" class="secondary">Annuleren</button>
+        <button id="saveExerciseBtn" value="default" class="primary">Opslaan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
