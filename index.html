@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#111827" />
   <title>Gym Progress</title>
-  <link rel="manifest" href="manifest.json?v=14" />
-  <link rel="stylesheet" href="styles.css?v=14" />
+  <link rel="manifest" href="manifest.json?v=15" />
+  <link rel="stylesheet" href="styles.css?v=15" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div>
-        <div class="eyebrow">GYM TRACKER <span id="appVersion">v14</span></div>
+        <div class="eyebrow">GYM TRACKER <span id="appVersion">v15</span></div>
         <h1>Progress</h1>
       </div>
       <button id="exportBtn" class="icon-btn" title="Exporteer data">⇩</button>
@@ -146,6 +146,9 @@
             </div>
           </div>
 <div id="activeSetsContainer" class="sets"></div>
+          <div class="set-controls">
+            <button id="addActiveSetBtn" type="button" class="secondary">+ Set toevoegen</button>
+          </div>
 
           <label>RIR laatste set</label>
           <select id="activeRirInput">
@@ -278,7 +281,7 @@
   <script>
   (async function(){
     try{
-      const key="gym-v14-cache-reset";
+      const key="gym-v15-cache-reset";
       if(!sessionStorage.getItem(key)){
         sessionStorage.setItem(key,"1");
         if("serviceWorker" in navigator){
@@ -294,6 +297,6 @@
   })();
   </script>
 
-  <script src="app.js?v=14"></script>
+  <script src="app.js?v=15"></script>
 </body>
 </html>

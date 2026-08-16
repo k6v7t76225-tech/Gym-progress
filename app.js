@@ -352,6 +352,65 @@ function renderActiveExerciseSwitcher(){
   }).join("");
 }
 
+
+function currentActiveExercise(){
+  if(!activeWorkout) return null;
+  return getExercise(activeWorkout.exerciseIds[activeWorkout.index]);
+}
+
+function makeActiveSetRow(index, ex, weightValue=""){
+  const row=document.createElement("div");
+  row.className="set-box active-set-row";
+  row.innerHTML=`
+    <div class="set-header-row">
+      <label>Set ${index+1}</label>
+      <button type="button" class="remove-set-btn">Verwijder</button>
+    </div>
+    <div class="set-input-grid">
+      <div>
+        <span class="mini-label">kg</span>
+        <input class="active-set-weight" type="text" inputmode="decimal" value="${weightValue}" placeholder="kg">
+      </div>
+      <div>
+        <span class="mini-label">reps</span>
+        <input class="active-rep-input" type="number" inputmode="numeric" min="0" max="100" placeholder="${ex.min}-${ex.max}">
+      </div>
+    </div>`;
+  return row;
+}
+
+function renumberActiveSets(){
+  const rows=[...document.querySelectorAll(".active-set-row")];
+  rows.forEach((row,i)=>{
+    const label=row.querySelector(".set-header-row label");
+    if(label) label.textContent=`Set ${i+1}`;
+    const remove=row.querySelector(".remove-set-btn");
+    if(remove) remove.disabled=rows.length<=1;
+  });
+  const ex=currentActiveExercise();
+  if(ex && activeTarget){
+    activeTarget.textContent=`${rows.length} × ${ex.min}–${ex.max}`;
+  }
+}
+
+function addActiveSet(){
+  const ex=currentActiveExercise();
+  if(!ex) return;
+  const rows=[...document.querySelectorAll(".active-set-row")];
+  const lastWeight=rows.length ? rows[rows.length-1].querySelector(".active-set-weight")?.value : "";
+  const sug=suggestedWeight(ex);
+  const weightValue=lastWeight || (sug!==null && sug!==undefined ? String(sug) : "");
+  activeSetsContainer.appendChild(makeActiveSetRow(rows.length, ex, weightValue));
+  renumberActiveSets();
+}
+
+function removeActiveSet(row){
+  const rows=[...document.querySelectorAll(".active-set-row")];
+  if(rows.length<=1) return;
+  row.remove();
+  renumberActiveSets();
+}
+
 function renderActiveExercise(){
   if(!activeWorkout) return;
   const total=activeWorkout.exerciseIds.length;
@@ -387,24 +446,30 @@ function renderActiveExercise(){
   activeSuggested.textContent=fmtKg(sug);
   activeIncrement.textContent=ex.increment ? `+${fmtKg(ex.increment)}` : "—";
 
-  activeSetsContainer.innerHTML=Array.from({length:ex.sets},(_,i)=>`
-    <div class="set-box active-set-row">
-      <label>Set ${i+1}</label>
-      <div class="set-input-grid">
-        <div>
-          <span class="mini-label">kg</span>
-          <input class="active-set-weight" type="text" inputmode="decimal" value="${sug!==null && sug!==undefined ? String(sug) : ""}" placeholder="kg">
-        </div>
-        <div>
-          <span class="mini-label">reps</span>
-          <input class="active-rep-input" type="number" inputmode="numeric" min="0" max="100" placeholder="${ex.min}-${ex.max}">
-        </div>
-      </div>
-    </div>`).join("");
+  activeSetsContainer.innerHTML="";
+  for(let i=0;i<ex.sets;i++){
+    activeSetsContainer.appendChild(
+      makeActiveSetRow(i, ex, sug!==null && sug!==undefined ? String(sug) : "")
+    );
+  }
 
   activeRirInput.value="";
   activeNoteInput.value="";
-  restoreActiveDraft(ex);
+  const restored=restoreActiveDraft(ex);
+  if(restored){
+    const draft=activeWorkout?.drafts?.[ex.id];
+    if(Array.isArray(draft?.sets) && draft.sets.length!==ex.sets){
+      activeSetsContainer.innerHTML="";
+      draft.sets.forEach((s,i)=>{
+        const row=makeActiveSetRow(i, ex, s.weight ?? "");
+        row.querySelector(".active-rep-input").value=s.reps ?? "";
+        activeSetsContainer.appendChild(row);
+      });
+      activeRirInput.value=draft.rir ?? "";
+      activeNoteInput.value=draft.note ?? "";
+    }
+  }
+  renumberActiveSets();
   activeResultBox.className="result hidden";
   activeResultBox.textContent="";
   setRestTimer(defaultRestForExercise(ex), false);
@@ -561,6 +626,15 @@ exerciseSelect.addEventListener("change", updateWorkoutForm);
 startWorkoutBtn?.addEventListener("click", startActiveWorkout);
 document.getElementById("saveAndNextBtn")?.addEventListener("click", saveActiveExercise);
 document.getElementById("skipExerciseBtn")?.addEventListener("click", skipActiveExercise);
+
+document.getElementById("addActiveSetBtn")?.addEventListener("click", addActiveSet);
+activeSetsContainer?.addEventListener("click",(e)=>{
+  const btn=e.target.closest(".remove-set-btn");
+  if(!btn) return;
+  const row=btn.closest(".active-set-row");
+  if(row) removeActiveSet(row);
+});
+
 
 activeExerciseSelect?.addEventListener("change",()=>{
   if(!activeWorkout) return;
