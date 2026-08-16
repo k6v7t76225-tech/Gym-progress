@@ -43,7 +43,7 @@ const defaultRoutines = {
 
 let state = loadState();
 if(!state.routines) state.routines = defaultRoutines;
-if(state.routines?.B) state.routines.B.name="Workout B - Rug en Bicep";
+if(state.routines?.B) { state.routines.B.name="Workout B - Rug en Bicep"; saveState(); }
 // Voeg nieuwere standaard-oefeningen toe zonder bestaande voortgang te wissen.
 for(const ex of defaultExercises){
   if(!state.exercises.some(x=>x.id===ex.id)) state.exercises.push(ex);
@@ -71,7 +71,7 @@ function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); 
 
 
 function forceDecimalTextInputs(){
-  ["editIncrement","editStart","weightInput","activeWeightInput"].forEach(id=>{
+  ["editIncrement","editStart"].forEach(id=>{
     const el=document.getElementById(id);
     if(!el) return;
     el.type="text";
@@ -103,10 +103,39 @@ function uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(3
 
 function getExercise(id){ return state.exercises.find(x=>x.id===id); }
 function workoutsFor(id){ return state.workouts.filter(w=>w.exerciseId===id).sort((a,b)=>new Date(a.date)-new Date(b.date)); }
+
+function workoutSetDetails(w){
+  if(Array.isArray(w?.sets) && w.sets.length){
+    return w.sets.map(s=>({
+      weight: parseDecimal(s.weight) ?? 0,
+      reps: Number(s.reps) || 0
+    }));
+  }
+  const oldWeight=parseDecimal(w?.weight) ?? 0;
+  const oldReps=Array.isArray(w?.reps) ? w.reps : [];
+  return oldReps.map(reps=>({weight:oldWeight,reps:Number(reps)||0}));
+}
+
+function workoutMaxWeight(w){
+  const details=workoutSetDetails(w);
+  return details.length ? Math.max(...details.map(s=>s.weight)) : (parseDecimal(w?.weight) ?? 0);
+}
+
+function workoutReps(w){
+  const details=workoutSetDetails(w);
+  return details.map(s=>s.reps);
+}
+
+function setsSummary(w){
+  const details=workoutSetDetails(w);
+  return details.map((s,i)=>`S${i+1}: ${fmtKg(s.weight)} × ${s.reps}`).join(" · ");
+}
+
 function suggestedWeight(ex){
   const items = workoutsFor(ex.id);
   if(!items.length) return ex.start ?? null;
-  return items[items.length-1].nextWeight;
+  const latest=items[items.length-1];
+  return parseDecimal(latest.nextWeight) ?? workoutMaxWeight(latest);
 }
 
 const workoutDaySelect = document.getElementById("workoutDaySelect");
@@ -114,7 +143,6 @@ const exerciseSelect = document.getElementById("exerciseSelect");
 const targetLabel = document.getElementById("targetLabel");
 const suggestedWeightEl = document.getElementById("suggestedWeight");
 const incrementLabel = document.getElementById("incrementLabel");
-const weightInput = document.getElementById("weightInput");
 const setsContainer = document.getElementById("setsContainer");
 const rirInput = document.getElementById("rirInput");
 const noteInput = document.getElementById("noteInput");
@@ -137,7 +165,6 @@ const previousReps = document.getElementById("previousReps");
 const activeTarget = document.getElementById("activeTarget");
 const activeSuggested = document.getElementById("activeSuggested");
 const activeIncrement = document.getElementById("activeIncrement");
-const activeWeightInput = document.getElementById("activeWeightInput");
 const activeSetsContainer = document.getElementById("activeSetsContainer");
 const activeRirInput = document.getElementById("activeRirInput");
 const activeNoteInput = document.getElementById("activeNoteInput");
@@ -277,10 +304,12 @@ function saveActiveDraft(){
   if(!activeWorkout) return;
   const id=activeWorkout.exerciseIds[activeWorkout.index];
   if(!id) return;
-  const reps=[...document.querySelectorAll(".active-rep-input")].map(i=>i.value);
+  const setRows=[...document.querySelectorAll(".active-set-row")].map(row=>({
+    weight:row.querySelector(".active-set-weight")?.value ?? "",
+    reps:row.querySelector(".active-rep-input")?.value ?? ""
+  }));
   activeWorkout.drafts[id]={
-    weight:activeWeightInput?.value ?? "",
-    reps,
+    sets:setRows,
     rir:activeRirInput?.value ?? "",
     note:activeNoteInput?.value ?? ""
   };
@@ -289,9 +318,13 @@ function saveActiveDraft(){
 function restoreActiveDraft(ex){
   const draft=activeWorkout?.drafts?.[ex.id];
   if(!draft) return false;
-  activeWeightInput.value=draft.weight ?? "";
-  const inputs=[...document.querySelectorAll(".active-rep-input")];
-  inputs.forEach((inp,i)=>inp.value=draft.reps?.[i] ?? "");
+  const rows=[...document.querySelectorAll(".active-set-row")];
+  rows.forEach((row,i)=>{
+    if(draft.sets?.[i]){
+      row.querySelector(".active-set-weight").value=draft.sets[i].weight ?? "";
+      row.querySelector(".active-rep-input").value=draft.sets[i].reps ?? "";
+    }
+  });
   activeRirInput.value=draft.rir ?? "";
   activeNoteInput.value=draft.note ?? "";
   return true;
@@ -342,8 +375,8 @@ function renderActiveExercise(){
 
   const prev=latestWorkoutForExercise(ex.id);
   if(prev){
-    previousWeight.textContent=fmtKg(prev.weight);
-    previousReps.textContent=`${prev.reps.join(" / ")} reps`;
+    previousWeight.textContent=`Zwaarste: ${fmtKg(workoutMaxWeight(prev))}`;
+    previousReps.textContent=setsSummary(prev);
   }else{
     previousWeight.textContent="Nog geen historie";
     previousReps.textContent="";
@@ -355,12 +388,20 @@ function renderActiveExercise(){
   activeIncrement.textContent=ex.increment ? `+${fmtKg(ex.increment)}` : "—";
 
   activeSetsContainer.innerHTML=Array.from({length:ex.sets},(_,i)=>`
-    <div class="set-box">
+    <div class="set-box active-set-row">
       <label>Set ${i+1}</label>
-      <input class="active-rep-input" type="number" inputmode="numeric" min="0" max="100" placeholder="${ex.min}-${ex.max}">
+      <div class="set-input-grid">
+        <div>
+          <span class="mini-label">kg</span>
+          <input class="active-set-weight" type="text" inputmode="decimal" value="${sug!==null && sug!==undefined ? String(sug) : ""}" placeholder="kg">
+        </div>
+        <div>
+          <span class="mini-label">reps</span>
+          <input class="active-rep-input" type="number" inputmode="numeric" min="0" max="100" placeholder="${ex.min}-${ex.max}">
+        </div>
+      </div>
     </div>`).join("");
 
-  activeWeightInput.value=(sug!==null && sug!==undefined) ? sug : "";
   activeRirInput.value="";
   activeNoteInput.value="";
   restoreActiveDraft(ex);
@@ -376,22 +417,29 @@ function saveActiveExercise(){
   if(!activeWorkout) return;
   const id=activeWorkout.exerciseIds[activeWorkout.index];
   const ex=getExercise(id);
-  const weightRaw=activeWeightInput.value;
-  const reps=[...document.querySelectorAll(".active-rep-input")].map(i=>Number(i.value));
 
-  // Bodyweight/core may reasonably use 0 kg; only reps are mandatory.
-  if(reps.some(r=>!r)){
-    alert("Vul alle sets in.");
+  const setDetails=[...document.querySelectorAll(".active-set-row")].map(row=>({
+    weight:parseDecimal(row.querySelector(".active-set-weight")?.value),
+    reps:Number(row.querySelector(".active-rep-input")?.value)
+  }));
+
+  if(setDetails.some(s=>s.weight===null || s.reps<=0)){
+    alert("Vul bij iedere set het gewicht én de reps in.");
     return;
   }
-  let weight = weightRaw==="" ? 0 : parseDecimal(weightRaw);
-  const hitTop=reps.every(r=>r>=ex.max);
-  const nextWeight=hitTop ? weight + (parseDecimal(ex.increment) ?? 0) : weight;
+
+  const hitTop=setDetails.every(s=>s.reps>=ex.max);
+  const maxWeight=Math.max(...setDetails.map(s=>s.weight));
+  const nextWeight=hitTop ? maxWeight + (parseDecimal(ex.increment) ?? 0) : maxWeight;
+  const reps=setDetails.map(s=>s.reps);
 
   state.workouts.push({
     id:uid(), date:nowISO(), workoutDay:activeWorkout.day,
     workoutSessionStartedAt:activeWorkout.startedAt,
-    exerciseId:ex.id, weight, reps,
+    exerciseId:ex.id,
+    sets:setDetails,
+    weight:maxWeight,
+    reps,
     rir:activeRirInput.value, note:activeNoteInput.value.trim(),
     status:hitTop ? "VERHOGEN" : "HOUDEN", nextWeight
   });
@@ -401,10 +449,10 @@ function saveActiveExercise(){
 
   activeResultBox.className=`result ${hitTop?"increase":"hold"}`;
   activeResultBox.textContent=hitTop && ex.increment
-    ? `✓ Doel gehaald. Volgende keer: ${fmtKg(nextWeight)}`
+    ? `✓ Doel gehaald. Advies volgende keer: ${fmtKg(nextWeight)}`
     : hitTop
       ? "✓ Doel gehaald."
-      : `Volgende keer hetzelfde: ${fmtKg(nextWeight)}`;
+      : `Nog niet verhogen. Zwaarste set: ${fmtKg(maxWeight)}`;
 
   setTimeout(()=>{
     const nextIndex=firstUnfinishedIndex(activeWorkout.index);
@@ -489,12 +537,19 @@ function updateWorkoutForm(){
   const sug = suggestedWeight(ex);
   suggestedWeightEl.textContent = fmtKg(sug);
   incrementLabel.textContent = `+${fmtKg(ex.increment)}`;
-  if(sug!==null) weightInput.value = sug;
-  else weightInput.value = "";
   setsContainer.innerHTML = Array.from({length:ex.sets},(_,i)=>`
-    <div class="set-box">
+    <div class="set-box loose-set-row">
       <label>Set ${i+1}</label>
-      <input class="rep-input" type="number" inputmode="numeric" min="0" max="50" placeholder="${ex.min}-${ex.max}">
+      <div class="set-input-grid">
+        <div>
+          <span class="mini-label">kg</span>
+          <input class="set-weight-input" type="text" inputmode="decimal" value="${sug!==null && sug!==undefined ? String(sug) : ""}" placeholder="kg">
+        </div>
+        <div>
+          <span class="mini-label">reps</span>
+          <input class="rep-input" type="number" inputmode="numeric" min="0" max="50" placeholder="${ex.min}-${ex.max}">
+        </div>
+      </div>
     </div>`).join("");
   resultBox.className = "result hidden";
   resultBox.textContent = "";
@@ -523,11 +578,12 @@ restTimerResetBtn?.addEventListener("click", resetRestTimer);
 activeSetsContainer?.addEventListener("keydown",(e)=>{
   if(e.key!=="Enter" || !e.target.classList.contains("active-rep-input")) return;
   e.preventDefault();
-  const inputs=[...document.querySelectorAll(".active-rep-input")];
-  const idx=inputs.indexOf(e.target);
+  const rows=[...document.querySelectorAll(".active-set-row")];
+  const row=e.target.closest(".active-set-row");
+  const idx=rows.indexOf(row);
   if(e.target.value){
     setRestTimer(restTimer.duration,true);
-    if(idx>=0 && idx<inputs.length-1) inputs[idx+1].focus();
+    if(idx>=0 && idx<rows.length-1) rows[idx+1].querySelector(".active-set-weight")?.focus();
   }
 });
 
@@ -539,16 +595,27 @@ document.querySelectorAll(".timer-preset").forEach(btn=>{
 
 document.getElementById("saveWorkoutBtn").addEventListener("click", ()=>{
   const ex = getExercise(exerciseSelect.value);
-  const weight = parseDecimal(weightInput.value);
-  const reps = [...document.querySelectorAll(".rep-input")].map(i=>Number(i.value));
-  if(!ex || weight===null || reps.some(r=>!r)){
-    alert("Vul gewicht en alle sets in.");
+  const setDetails=[...document.querySelectorAll(".loose-set-row")].map(row=>({
+    weight:parseDecimal(row.querySelector(".set-weight-input")?.value),
+    reps:Number(row.querySelector(".rep-input")?.value)
+  }));
+
+  if(!ex || setDetails.some(s=>s.weight===null || s.reps<=0)){
+    alert("Vul bij iedere set het gewicht én de reps in.");
     return;
   }
-  const hitTop = reps.every(r=>r>=ex.max);
-  const nextWeight = hitTop ? weight + (parseDecimal(ex.increment) ?? 0) : weight;
+
+  const hitTop=setDetails.every(s=>s.reps>=ex.max);
+  const maxWeight=Math.max(...setDetails.map(s=>s.weight));
+  const nextWeight=hitTop ? maxWeight + (parseDecimal(ex.increment) ?? 0) : maxWeight;
+  const reps=setDetails.map(s=>s.reps);
+
   state.workouts.push({
-    id:uid(), date:nowISO(), workoutDay:workoutDaySelect?.value || "", exerciseId:ex.id, weight, reps,
+    id:uid(), date:nowISO(), workoutDay:workoutDaySelect?.value || "",
+    exerciseId:ex.id,
+    sets:setDetails,
+    weight:maxWeight,
+    reps,
     rir:rirInput.value, note:noteInput.value.trim(),
     status: hitTop ? "VERHOGEN" : "HOUDEN", nextWeight
   });
@@ -556,7 +623,7 @@ document.getElementById("saveWorkoutBtn").addEventListener("click", ()=>{
   resultBox.className = `result ${hitTop?"increase":"hold"}`;
   resultBox.textContent = hitTop
     ? `✓ Doel gehaald. Volgende keer: ${fmtKg(nextWeight)}`
-    : `Nog niet verhogen. Volgende keer: ${fmtKg(nextWeight)}`;
+    : `Nog niet verhogen. Zwaarste set: ${fmtKg(maxWeight)}`;
   rirInput.value="";
   noteInput.value="";
   renderAll();
@@ -572,7 +639,7 @@ function renderHistory(){
       <div class="row">
         <div>
           <div class="history-title">${ex?.name ?? "Onbekend"}</div>
-          <div class="sub">${localDate(w.date)}${w.workoutDay?` · Workout ${w.workoutDay}`:""} · ${fmtKg(w.weight)} · ${w.reps.join(" / ")} reps${w.rir?` · RIR ${w.rir}`:""}</div>
+          <div class="sub">${localDate(w.date)}${w.workoutDay?` · Workout ${w.workoutDay}`:""} · ${setsSummary(w)}${w.rir?` · RIR ${w.rir}`:""}</div>
         </div>
         <span class="pill ${w.status==="VERHOGEN"?"up":"hold"}">${w.status}</span>
       </div>
@@ -589,7 +656,7 @@ function renderProgress(){
   el.innerHTML = state.exercises.map(ex=>{
     const ws = workoutsFor(ex.id);
     const current = suggestedWeight(ex);
-    const pr = ws.length ? Math.max(...ws.map(w=>w.weight)) : null;
+    const pr = ws.length ? Math.max(...ws.map(w=>workoutMaxWeight(w))) : null;
     const latest = ws.length ? ws[ws.length-1] : null;
     return `<div class="progress-item">
       <div class="row">
@@ -602,7 +669,7 @@ function renderProgress(){
           <div class="sub">advies</div>
         </div>
       </div>
-      <div class="sub" style="margin-top:9px">PR: ${fmtKg(pr)} · Sessies: ${ws.length}${latest?` · Laatst: ${latest.reps.join("/")}`:""}</div>
+      <div class="sub" style="margin-top:9px">PR: ${fmtKg(pr)} · Sessies: ${ws.length}${latest?` · Laatst: ${setsSummary(latest)}`:""}</div>
     </div>`;
   }).join("");
 }
@@ -838,8 +905,4 @@ forceDecimalTextInputs();
 renderAll();
 renderRestTimer();
 
-if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js").then(reg=>{
-    reg.update().catch(()=>{});
-  }).catch(()=>{});
-}
+// Service worker tijdelijk uitgeschakeld in v13 om oude iPhone-cache definitief te vermijden.
